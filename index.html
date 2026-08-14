@@ -81,6 +81,19 @@
     border-color: transparent;
   }
 
+  .preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; justify-content: center; }
+  .preset-chip {
+    border: 1.5px solid #ffb3cd;
+    background: #fff0f5;
+    color: #a3607c;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: .78rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .preset-chip:hover { border-color: var(--pink); color: var(--pink-dark); }
+
   .btn {
     display: inline-block;
     border: none;
@@ -274,6 +287,7 @@
       <button class="lang-btn active" data-lang="vi" type="button">🇻🇳 Tiếng Việt</button>
       <button class="lang-btn" data-lang="en" type="button">🇬🇧 English</button>
     </div>
+    <div class="preset-row" id="presetRow"></div>
     <textarea id="inpQuestion" maxlength="300" placeholder="VD: Làm người yêu anh nhé? 🥺"></textarea>
     <button class="btn btn-primary" id="btnCreate">Tạo link 💘</button>
     <div class="link-box" id="linkBox">
@@ -350,6 +364,15 @@
         'Hết cách rồi, chỉ còn một lựa chọn thôi 😌',
         'Sợi xích này chắc lắm, đừng cố 😆',
       ],
+      // KHÔNG đổi thứ tự/nội dung: link dạng ?p=N trỏ theo vị trí trong danh sách này
+      presets: [
+        'Làm người yêu anh nhé? 🥺',
+        'Làm người yêu em nhé? 🥺',
+        'Cuối tuần này đi cà phê với anh nhé? ☕',
+        'Đi chơi với em cuối tuần này nhé? 🌸',
+        'Mình chính thức quen nhau nhé? 💘',
+        'Tối nay đi xem phim với anh nhé? 🎬',
+      ],
     },
     en: {
       createTitle: '💌 Create your question',
@@ -374,13 +397,25 @@
         "No other options left, I'm afraid 😌",
         "That chain won't break, don't even try 😆",
       ],
+      // Do NOT reorder/edit: ?p=N links point into this list by position
+      presets: [
+        'Will you be my valentine? 🥺',
+        'Will you go out with me? 🌹',
+        'Coffee with me this weekend? ☕',
+        'Movie night with me tonight? 🎬',
+        'Can we make it official? 💘',
+        'Dinner with me this Friday? 🍝',
+      ],
     },
   };
 
   const $ = id => document.getElementById(id);
   const params = new URLSearchParams(location.search);
-  const q = params.get('q') ? dec(params.get('q')) : null;
   let lang = ['vi', 'en'].includes(params.get('l')) ? params.get('l') : 'vi';
+  let q = params.get('q') ? dec(params.get('q')) : null;
+  // link rút gọn ?p=N -> lấy câu mẫu thứ N
+  const pNum = parseInt(params.get('p'), 10);
+  if (!q && pNum >= 1 && pNum <= I18N[lang].presets.length) q = I18N[lang].presets[pNum - 1];
 
   // ---------- Màn tạo link ----------
   if (!q) {
@@ -397,12 +432,27 @@
       $('btnCopy').textContent = t.copy;
       $('btnPreview').textContent = t.preview;
       $('creditText').textContent = t.credit;
+      // câu hỏi mẫu: chọn mẫu thì link sẽ siêu ngắn (?p=N thay vì mã hoá cả câu)
+      $('presetRow').innerHTML = '';
+      t.presets.forEach(p => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'preset-chip';
+        b.textContent = p;
+        b.addEventListener('click', () => {
+          $('inpQuestion').value = p;
+          if ($('linkBox').classList.contains('show')) buildLink();
+        });
+        $('presetRow').appendChild(b);
+      });
     }
 
     function buildLink() {
       const text = $('inpQuestion').value.trim();
       if (!text) { $('inpQuestion').focus(); return; }
-      link = location.origin + location.pathname + '?q=' + enc(text) + (lang !== 'vi' ? '&l=' + lang : '');
+      const pi = I18N[lang].presets.indexOf(text);
+      const payload = pi >= 0 ? '?p=' + (pi + 1) : '?q=' + enc(text);
+      link = location.origin + location.pathname.replace(/index\.html$/, '') + payload + (lang !== 'vi' ? '&l=' + lang : '');
       $('linkUrl').textContent = link;
       $('linkBox').classList.add('show');
     }
